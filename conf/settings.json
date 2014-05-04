@@ -1,0 +1,24 @@
+{
+    "servers": [
+        {
+            "host": "localhost",
+            "port": 50023,
+            "delay": 50
+        },
+        {
+            "host": "localhost",
+            "port": 50002,
+            "delay": 50
+        },
+        {
+            "host": "localhost",
+            "port": 50003,
+            "delay": 50
+        },
+        {
+            "host": "localhost",
+            "port": 50004,
+            "delay": 50
+        }
+    ]
+}

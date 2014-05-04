@@ -29,7 +29,6 @@ public class Networker {
             logger.debug("Threaded receiver is running");
 
             try {
-                System.out.println(socket.getLocalPort());
                 InputStream ins = socket.getInputStream();
 
                 String msg = new DataInputStream(ins).readUTF();
@@ -52,8 +51,10 @@ public class Networker {
 
     public void startListener(final int port) {
         // will never start more than one listener
-        if (listener != null)
+        if (listener != null) {
+            logger.warn("Server already started");
             return;
+        }
 
         listener = new Thread() {
 
@@ -69,7 +70,7 @@ public class Networker {
 
                 while (true) {
                     try {
-                        logger.debug("Waiting for connections...");
+                        logger.debug(String.format("Started listening on port %d, waiting for connections...", port));
                         new ThreadedReceiver(serverSocket.accept()).start();
                     } catch (IOException e) {
                         logger.warn("Failed accepting client.");
@@ -82,7 +83,13 @@ public class Networker {
         listener.start();
     }
 
+    public void unicastSend(ServerConfig serverConfig, String message) {
+        unicastSend(serverConfig.getHost(), serverConfig.getPort(), message);
+    }
+
     public void unicastSend(String server, int port, String message) {
+        logger.debug(String.format("Sending %s to %s:%d", message, server, port));
+
         try {
             Socket client = new Socket(server, port);
             OutputStream outToServer = client.getOutputStream();
@@ -95,7 +102,7 @@ public class Networker {
             DataInputStream in =
                     new DataInputStream(inFromServer);
 
-            logger.info("Server says " + in.readUTF());
+            logger.info("Server says: " + in.readUTF());
 
             client.close();
         } catch (IOException e) {
