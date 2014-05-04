@@ -1,4 +1,5 @@
 {
+    "numReplicas": 3,
     "servers": [
         {
             "host": "localhost",
