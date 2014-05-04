@@ -2,6 +2,7 @@ package me.zfei.kvstore;
 
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
+import me.zfei.kvstore.utils.CommandAction;
 import me.zfei.kvstore.utils.Networker;
 import me.zfei.kvstore.utils.ServerConfig;
 import org.slf4j.Logger;
@@ -92,38 +93,43 @@ public class Client {
         return key.hashCode() % serverConfigs.size();
     }
 
-    private void checkArgNumCheck(int size, int threshold) throws CommandLineException {
-        if (size < threshold)
+    private void checkArgNumCheck(int size, int safe) throws CommandLineException {
+        if (size < safe)
             throw new CommandLineException("Illegal command");
     }
 
+    public static CommandAction getActionType(String[] commandParts) {
+        // Assumes clean input
+        if (commandParts[0].equals("search-all"))
+            return CommandAction.SEARCHALL;
+        else
+            return CommandAction.valueOf(commandParts[0].toUpperCase());
+    }
+
     public void execute(String command) throws CommandLineException {
-        String[] commandParts = command.split(" ");
+        String[] commandParts = command.split("\\s+");
 
         checkArgNumCheck(commandParts.length, 1);
 
-        String actionName = commandParts[0];
-        if (actionName.equals("search-all")) {
-
-        } else if (actionName.equals("search")) {
-
-        } else {
-            checkArgNumCheck(commandParts.length, 2);
-            int targetServerIndex = getTargetServerIndex(commandParts[1]);
-
-            if (actionName.equals("delete")) {
-
-
-            } else if (actionName.equals("get")) {
+        CommandAction actionType = getActionType(commandParts);
+        switch (actionType) {
+            case SEARCH:
+                checkArgNumCheck(commandParts.length, 2);
+                break;
+            case SEARCHALL:
+                break;
+            case DELETE:
+                checkArgNumCheck(commandParts.length, 2);
+                break;
+            case GET:
                 checkArgNumCheck(commandParts.length, 3);
-
-            } else if (actionName.equals("insert")) {
+                break;
+            case INSERT:
                 checkArgNumCheck(commandParts.length, 4);
-
-            } else if (actionName.equals("update")) {
+                break;
+            case UPDATE:
                 checkArgNumCheck(commandParts.length, 4);
-
-            }
+                break;
         }
     }
 }

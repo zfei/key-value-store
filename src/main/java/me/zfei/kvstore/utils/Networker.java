@@ -1,12 +1,12 @@
 package me.zfei.kvstore.utils;
 
+import me.zfei.kvstore.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Scanner;
 
 /**
  * Created by zfei on 5/3/14.
@@ -14,6 +14,7 @@ import java.util.Scanner;
 public class Networker {
     private static Logger logger = LoggerFactory.getLogger(Networker.class);
     Thread listener = null;
+    private Server callbackServer = null;
 
     class ThreadedReceiver extends Thread {
         private Socket socket;
@@ -30,13 +31,11 @@ public class Networker {
 
             try {
                 InputStream ins = socket.getInputStream();
-
                 String msg = new DataInputStream(ins).readUTF();
-
                 logger.info(String.format("Received: %s", msg));
 
                 DataOutputStream outs = new DataOutputStream(socket.getOutputStream());
-                outs.writeUTF("ACCEPTED");
+                callbackServer.onReceiveCommand(msg, outs);
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
@@ -49,12 +48,14 @@ public class Networker {
         }
     }
 
-    public void startListener(final int port) {
+    public void startServerListener(final int port, Server callbackServer) {
         // will never start more than one listener
         if (listener != null) {
             logger.warn("Server already started");
             return;
         }
+
+        this.callbackServer = callbackServer;
 
         listener = new Thread() {
 
@@ -107,19 +108,6 @@ public class Networker {
             client.close();
         } catch (IOException e) {
             e.printStackTrace();
-        }
-    }
-
-    public static void main(String[] args) {
-        Networker server = new Networker();
-        server.startListener(5000);
-
-        Networker client = new Networker();
-        Scanner sc = new Scanner(System.in, "UTF-8");
-        while (sc.hasNext()) {
-            String next = sc.nextLine();
-            logger.debug("sending " + next);
-            client.unicastSend("localhost", 5000, next);
         }
     }
 }
