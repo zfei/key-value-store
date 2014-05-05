@@ -255,24 +255,39 @@ public class Client {
 
                 long latestTimestamp = -1;
                 int correctServerIndex = -1;
+                boolean shouldDelete = false;
                 String key = "", value = "";
                 for (int i = 0; i < qr.length; i++) {
+                    long timestamp = -1;
                     List<ResultEntry> reList = qr[i].getResult();
-                    if (reList == null)
-                        continue;
-
-                    ResultEntry re = reList.get(0);
-                    long timestamp = re.getTimestamp();
-                    if (timestamp > latestTimestamp) {
-                        correctServerIndex = replicaIndices[i];
-                        latestTimestamp = timestamp;
+                    if (reList == null) {
+                        if (!qr[i].getReason().startsWith("Deleted"))
+                            continue;
+                        else {
+                            timestamp = Long.parseLong(qr[i].getReason().substring(qr[i].getReason().indexOf('@') + 1));
+                        }
+                    } else {
+                        ResultEntry re = reList.get(0);
+                        timestamp = re.getTimestamp();
 
                         key = re.getKey();
                         value = re.getValue();
                     }
+
+                    if (timestamp > latestTimestamp) {
+                        correctServerIndex = replicaIndices[i];
+                        latestTimestamp = timestamp;
+
+                        if (reList == null)
+                            shouldDelete = true;
+                    }
                 }
 
-                final String message = String.format("UPDATE %s %s ALL", key, value);
+                final String message;
+                if (shouldDelete)
+                    message = String.format("DELETE %s", key);
+                else
+                    message = String.format("UPDATE %s %s ALL", key, value);
 
                 for (int i = 0; i < replicaIndices.length; i++) {
                     final int serverIndex = replicaIndices[i];

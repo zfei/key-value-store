@@ -130,7 +130,9 @@ public class Server {
             entries.add(new ResultEntry(key, datastore.get(key), timestamps.get(key)));
             QueryResult result = new QueryResult(true, entries);
             outs.writeUTF(new Gson().toJson(result));
-        } else
+        } else if (tombstones.contains(key))
+            respondFailure(outs, "Deleted@" + timestamps.get(key));
+        else
             respondFailure(outs, "Key not found");
     }
 
