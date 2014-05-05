@@ -1,0 +1,25 @@
+{
+    "numReplicas": 3,
+    "servers": [
+        {
+            "host": "localhost",
+            "port": 50023,
+            "delays": [50, 5000, 1000, 2000]
+        },
+        {
+            "host": "localhost",
+            "port": 50002,
+            "delays": [5000, 50, 1000, 1000]
+        },
+        {
+            "host": "localhost",
+            "port": 50003,
+            "delays": [6000, 1000, 50, 2000]
+        },
+        {
+            "host": "localhost",
+            "port": 50004,
+            "delays": [3000, 1000, 99000, 50]
+        }
+    ]
+}
