@@ -22,6 +22,7 @@ public class Server {
 
     private Map<String, String> datastore = new HashMap<String, String>();
     private Set<String> tombstones = new HashSet<String>();
+    private Map<String, Long> timestamps = new HashMap<String, Long>();
 
     public Server(int port) {
         networker = new Networker();
@@ -36,7 +37,20 @@ public class Server {
         System.exit(0);
     }
 
-    public void onReceiveCommand(String command, DataOutputStream outs) throws IOException {
+    public boolean updateTimestamp(String key, long timestamp) {
+        if (!timestamps.containsKey(key) || timestamps.get(key) < timestamp) {
+            logger.debug(String.format("Original timestamp: %d, received: %d",
+                    timestamps.get(key) != null ? timestamps.get(key) : -1, timestamp));
+            timestamps.put(key, timestamp);
+            return true;
+        }
+
+        return false;
+    }
+
+    public void onReceiveCommand(String message, DataOutputStream outs) throws IOException {
+        String command = message.substring(0, message.lastIndexOf('@'));
+        long timestamp = Long.parseLong(message.substring(message.lastIndexOf('@') + 1));
         String[] commandParts = command.trim().split("\\s+");
         CommandAction actionType = Client.getActionType(commandParts);
 
@@ -48,16 +62,25 @@ public class Server {
                 showAll(outs);
                 break;
             case DELETE:
-                createTombstone(commandParts, outs);
+                if (updateTimestamp(commandParts[1], timestamp))
+                    createTombstone(commandParts, outs);
+                else
+                    respondFailure(outs, "Received stale data");
                 break;
             case GET:
                 getFromDatastore(commandParts, outs);
                 break;
             case INSERT:
-                updateOrInsert(commandParts, outs);
+                if (updateTimestamp(commandParts[1], timestamp))
+                    updateOrInsert(commandParts, outs);
+                else
+                    respondFailure(outs, "Received stale data");
                 break;
             case UPDATE:
-                updateOrInsert(commandParts, outs);
+                if (updateTimestamp(commandParts[1], timestamp))
+                    updateOrInsert(commandParts, outs);
+                else
+                    respondFailure(outs, "Received stale data");
                 break;
             default:
                 respondFailure(outs, "Command not understood");
@@ -103,8 +126,7 @@ public class Server {
             entries.add(new ResultEntry(key, datastore.get(key)));
             QueryResult result = new QueryResult(true, entries);
             outs.writeUTF(new Gson().toJson(result));
-        }
-        else
+        } else
             respondFailure(outs, "Key not found");
     }
 

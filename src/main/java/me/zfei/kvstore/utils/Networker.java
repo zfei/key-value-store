@@ -95,6 +95,7 @@ public class Networker {
     public String unicastSend(String server, int port, String message, int delay) {
 
         logger.debug(String.format("Sending %s to %s:%d with average delay of %d mill sec", message, server, port, delay));
+        long timestamp = System.currentTimeMillis();
 
         // random delay
         if (delay != 0)
@@ -110,7 +111,7 @@ public class Networker {
             DataOutputStream out =
                     new DataOutputStream(outToServer);
 
-            out.writeUTF(message);
+            out.writeUTF(String.format("%s@%d", message, timestamp));
 
             InputStream ins = client.getInputStream();
             DataInputStream dins = new DataInputStream(ins);
