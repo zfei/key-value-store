@@ -1,9 +1,12 @@
-import me.zfei.kvstore.Client;
-import me.zfei.kvstore.Server;
+package me.zfei.kvstore;
+
 import me.zfei.kvstore.utils.ServerConfig;
+import org.apache.log4j.PropertyConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -12,9 +15,13 @@ import java.util.List;
 public class Standalone {
 
     private static Logger logger = LoggerFactory.getLogger(Standalone.class);
+    public static int serverIndex = -1;
 
+    public static void main(String[] args) throws IOException {
+        // config logger
+        File log4jConfFile = new File(System.getProperty("log4j.configuration"));
+        PropertyConfigurator.configure(log4jConfFile.getAbsolutePath());
 
-    public static void main(String[] args) {
         // check param
         if (args.length != 1) {
             System.out.println("Usage: java -jar Server.jar SERVER_INDEX");
@@ -26,7 +33,7 @@ public class Standalone {
 
         // check if server index is legal
         List<ServerConfig> serverConfigs = Client.serverConfigs;
-        int serverIndex = Integer.parseInt(args[0]);
+        serverIndex = Integer.parseInt(args[0]);
         int numServers = serverConfigs.size();
         if (serverIndex < 0 || serverIndex >= numServers) {
             logger.error(String.format("Illegal server index %d, expected [0, %d]", serverIndex, numServers));

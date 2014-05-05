@@ -32,14 +32,13 @@ public class Networker {
             try {
                 InputStream ins = socket.getInputStream();
                 DataInputStream dins = new DataInputStream(ins);
-                String msg = "";
-                while(dins.available()>0) {
-                    msg += dins.readUTF();
-                }
+                String msg = dins.readUTF();
                 logger.info(String.format("Received: %s", msg));
 
                 DataOutputStream outs = new DataOutputStream(socket.getOutputStream());
                 callbackServer.onReceiveCommand(msg, outs);
+
+                socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
@@ -88,11 +87,11 @@ public class Networker {
         listener.start();
     }
 
-    public void unicastSend(ServerConfig serverConfig, String message) {
-        unicastSend(serverConfig.getHost(), serverConfig.getPort(), message);
+    public String unicastSend(ServerConfig serverConfig, String message) {
+        return unicastSend(serverConfig.getHost(), serverConfig.getPort(), message);
     }
 
-    public void unicastSend(String server, int port, String message) {
+    public String unicastSend(String server, int port, String message) {
         logger.debug(String.format("Sending %s to %s:%d", message, server, port));
 
         try {
@@ -107,11 +106,14 @@ public class Networker {
             DataInputStream dins = new DataInputStream(ins);
             String msg = dins.readUTF();
 
-            logger.info("Server says: " + msg);
+            logger.info(String.format("%s:%d says: %s", server, port, msg));
 
             client.close();
+            return msg;
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        return "";
     }
 }
