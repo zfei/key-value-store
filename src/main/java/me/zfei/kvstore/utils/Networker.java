@@ -31,12 +31,16 @@ public class Networker {
 
             try {
                 InputStream ins = socket.getInputStream();
-                String msg = new DataInputStream(ins).readUTF();
+                DataInputStream dins = new DataInputStream(ins);
+                String msg = "";
+                while(dins.available()>0) {
+                    msg += dins.readUTF();
+                }
                 logger.info(String.format("Received: %s", msg));
 
                 DataOutputStream outs = new DataOutputStream(socket.getOutputStream());
                 callbackServer.onReceiveCommand(msg, outs);
-            } catch (Exception e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             } finally {
                 try {
@@ -99,11 +103,11 @@ public class Networker {
 
             out.writeUTF(message);
 
-            InputStream inFromServer = client.getInputStream();
-            DataInputStream in =
-                    new DataInputStream(inFromServer);
+            InputStream ins = client.getInputStream();
+            DataInputStream dins = new DataInputStream(ins);
+            String msg = dins.readUTF();
 
-            logger.info("Server says: " + in.readUTF());
+            logger.info("Server says: " + msg);
 
             client.close();
         } catch (IOException e) {

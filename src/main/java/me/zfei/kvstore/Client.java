@@ -79,7 +79,7 @@ public class Client {
                 }
 
                 try {
-                    execute(next);
+                    execute(sender, next);
                 } catch (CommandLineException e) {
                     logger.warn("Illegal command");
                 }
@@ -98,25 +98,33 @@ public class Client {
             throw new CommandLineException("Illegal command");
     }
 
-    public static CommandAction getActionType(String[] commandParts) {
+    public static CommandAction getActionType(String[] commandParts) throws IllegalArgumentException {
         // Assumes clean input
-        if (commandParts[0].equals("search-all"))
-            return CommandAction.SEARCHALL;
+        if (commandParts[0].equals("show-all"))
+            return CommandAction.SHOWALL;
         else
             return CommandAction.valueOf(commandParts[0].toUpperCase());
     }
 
-    public void execute(String command) throws CommandLineException {
-        String[] commandParts = command.split("\\s+");
+    public void execute(Networker sender, String command) throws CommandLineException {
+        String[] commandParts = command.trim().split("\\s+");
 
         checkArgNumCheck(commandParts.length, 1);
 
-        CommandAction actionType = getActionType(commandParts);
+        // reject illegal commands
+        CommandAction actionType;
+        try {
+            actionType = getActionType(commandParts);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Please enter legal commands");
+            return;
+        }
+
         switch (actionType) {
             case SEARCH:
                 checkArgNumCheck(commandParts.length, 2);
                 break;
-            case SEARCHALL:
+            case SHOWALL:
                 break;
             case DELETE:
                 checkArgNumCheck(commandParts.length, 2);
@@ -131,5 +139,7 @@ public class Client {
                 checkArgNumCheck(commandParts.length, 4);
                 break;
         }
+
+        sender.unicastSend(serverConfigs.get(0), command);
     }
 }
