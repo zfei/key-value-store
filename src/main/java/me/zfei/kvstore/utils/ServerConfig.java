@@ -6,7 +6,7 @@ package me.zfei.kvstore.utils;
 public class ServerConfig {
     String host;
     int port;
-    int delay;
+    int[] delays;
 
     public String getHost() {
         return host;
@@ -16,12 +16,12 @@ public class ServerConfig {
         return port;
     }
 
-    public int getDelay() {
-        return delay;
+    public int[] getDelays() {
+        return delays;
     }
 
     @Override
     public String toString() {
-        return host + ":" + port + ", " + delay;
+        return host + ":" + port + ", " + delays;
     }
 }

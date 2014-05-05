@@ -99,8 +99,10 @@ public class Client {
     }
 
     private void checkArgNumCheck(int size, int safe) throws IllegalArgumentException {
-        if (size < safe)
-            throw new IllegalArgumentException("Illegal command");
+        if (size < safe) {
+            logger.warn(String.format("Got %d args, expected %d args", size, safe));
+            throw new IllegalArgumentException("Wrong number of arguments");
+        }
     }
 
     public static CommandAction getActionType(String[] commandParts) throws IllegalArgumentException {
@@ -121,7 +123,7 @@ public class Client {
         try {
             actionType = getActionType(commandParts);
         } catch (IllegalArgumentException e) {
-            logger.warn("Please enter legal commands");
+            logger.warn("Illegal action");
             return;
         }
 
@@ -129,36 +131,36 @@ public class Client {
             case SEARCH:
                 checkArgNumCheck(commandParts.length, 2);
 
-                multicastCommand(sender, command, commandParts[1], "ALL");
+                multicastCommand(sender, command, commandParts[1], "ALL", false);
                 break;
             case SHOWALL:
                 if (Standalone.serverIndex != -1)
-                    sender.unicastSend(serverConfigs.get(Standalone.serverIndex), command);
+                    sender.unicastSend(serverConfigs.get(Standalone.serverIndex), command, 0);
                 break;
             case DELETE:
                 checkArgNumCheck(commandParts.length, 2);
 
-                multicastCommand(sender, command, commandParts[1], "ALL");
+                multicastCommand(sender, command, commandParts[1], "ALL", true);
                 break;
             case GET:
                 checkArgNumCheck(commandParts.length, 3);
 
-                multicastCommand(sender, command, commandParts[1], commandParts[2]);
+                multicastCommand(sender, command, commandParts[1], commandParts[2], true);
                 break;
             case INSERT:
                 checkArgNumCheck(commandParts.length, 4);
 
-                multicastCommand(sender, command, commandParts[1], commandParts[3]);
+                multicastCommand(sender, command, commandParts[1], commandParts[3], true);
                 break;
             case UPDATE:
                 checkArgNumCheck(commandParts.length, 4);
 
-                multicastCommand(sender, command, commandParts[1], commandParts[3]);
+                multicastCommand(sender, command, commandParts[1], commandParts[3], true);
                 break;
         }
     }
 
-    private void multicastCommand(final Networker sender, final String command, String key, String consistency) {
+    private void multicastCommand(final Networker sender, final String command, String key, String consistency, final boolean enableDelay) {
         ConsistencyLevel cl;
         try {
             cl = ConsistencyLevel.valueOf(consistency.toUpperCase());
@@ -175,7 +177,11 @@ public class Client {
             Thread sendingThread = new Thread() {
                 @Override
                 public void run() {
-                    results[finalI] = sender.unicastSend(serverConfigs.get(serverIndex), command);
+                    int averageDelay = 0;
+                    if (enableDelay && Standalone.serverIndex != -1)
+                        averageDelay = serverConfigs.get(Standalone.serverIndex).getDelays()[serverIndex];
+
+                    results[finalI] = sender.unicastSend(serverConfigs.get(serverIndex), command, averageDelay);
                 }
             };
             sendingThread.start();

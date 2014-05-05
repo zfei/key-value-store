@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Random;
 
 /**
  * Created by zfei on 5/3/14.
@@ -87,12 +88,21 @@ public class Networker {
         listener.start();
     }
 
-    public String unicastSend(ServerConfig serverConfig, String message) {
-        return unicastSend(serverConfig.getHost(), serverConfig.getPort(), message);
+    public String unicastSend(ServerConfig serverConfig, String message, int delay) {
+        return unicastSend(serverConfig.getHost(), serverConfig.getPort(), message, delay);
     }
 
-    public String unicastSend(String server, int port, String message) {
-        logger.debug(String.format("Sending %s to %s:%d", message, server, port));
+    public String unicastSend(String server, int port, String message, int delay) {
+
+        logger.debug(String.format("Sending %s to %s:%d with average delay of %d mill sec", message, server, port, delay));
+
+        // random delay
+        if (delay != 0)
+            try {
+                Thread.sleep(new Random().nextInt(delay * 2));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
         try {
             Socket client = new Socket(server, port);
