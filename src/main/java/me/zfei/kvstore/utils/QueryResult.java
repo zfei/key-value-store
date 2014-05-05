@@ -23,4 +23,16 @@ public class QueryResult {
         this.success = success;
         this.result = result;
     }
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public List<ResultEntry> getResult() {
+        return result;
+    }
 }

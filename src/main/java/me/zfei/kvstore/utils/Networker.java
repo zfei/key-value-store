@@ -88,14 +88,12 @@ public class Networker {
         listener.start();
     }
 
-    public String unicastSend(ServerConfig serverConfig, String message, int delay) {
-        return unicastSend(serverConfig.getHost(), serverConfig.getPort(), message, delay);
+    public String unicastSend(ServerConfig serverConfig, String message, int delay, long timestamp) {
+        return unicastSend(serverConfig.getHost(), serverConfig.getPort(), message, delay, timestamp);
     }
 
-    public String unicastSend(String server, int port, String message, int delay) {
-
+    public String unicastSend(String server, int port, String message, int delay, long timestamp) {
         logger.debug(String.format("Sending %s to %s:%d with average delay of %d mill sec", message, server, port, delay));
-        long timestamp = System.currentTimeMillis();
 
         // random delay
         if (delay != 0)

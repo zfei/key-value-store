@@ -65,7 +65,7 @@ public class Server {
                 if (updateTimestamp(commandParts[1], timestamp))
                     createTombstone(commandParts, outs);
                 else
-                    respondFailure(outs, "Received stale data");
+                    respondFailure(outs, "Rejected stale data");
                 break;
             case GET:
                 getFromDatastore(commandParts, outs);
@@ -74,13 +74,13 @@ public class Server {
                 if (updateTimestamp(commandParts[1], timestamp))
                     updateOrInsert(commandParts, outs);
                 else
-                    respondFailure(outs, "Received stale data");
+                    respondFailure(outs, "Rejected stale data");
                 break;
             case UPDATE:
                 if (updateTimestamp(commandParts[1], timestamp))
                     updateOrInsert(commandParts, outs);
                 else
-                    respondFailure(outs, "Received stale data");
+                    respondFailure(outs, "Rejected stale data");
                 break;
             default:
                 respondFailure(outs, "Command not understood");
@@ -96,8 +96,12 @@ public class Server {
         List<ResultEntry> entries = new ArrayList<ResultEntry>();
 
         for (Map.Entry<String, String> entry : datastore.entrySet())
-            if (!tombstones.contains(entry.getKey()))
-                entries.add(new ResultEntry(entry.getKey(), entry.getValue()));
+            if (!tombstones.contains(entry.getKey())) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                long timestamp = timestamps.get(key);
+                entries.add(new ResultEntry(key, value, timestamp));
+            }
 
         QueryResult result = new QueryResult(true, entries);
         outs.writeUTF(new Gson().toJson(result));
@@ -123,7 +127,7 @@ public class Server {
 
         if (!tombstones.contains(key) && datastore.containsKey(key)) {
             List<ResultEntry> entries = new ArrayList<ResultEntry>();
-            entries.add(new ResultEntry(key, datastore.get(key)));
+            entries.add(new ResultEntry(key, datastore.get(key), timestamps.get(key)));
             QueryResult result = new QueryResult(true, entries);
             outs.writeUTF(new Gson().toJson(result));
         } else

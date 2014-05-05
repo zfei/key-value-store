@@ -2,10 +2,7 @@ package me.zfei.kvstore;
 
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
-import me.zfei.kvstore.utils.CommandAction;
-import me.zfei.kvstore.utils.ConsistencyLevel;
-import me.zfei.kvstore.utils.Networker;
-import me.zfei.kvstore.utils.ServerConfig;
+import me.zfei.kvstore.utils.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,36 +128,36 @@ public class Client {
             case SEARCH:
                 checkArgNumCheck(commandParts.length, 2);
 
-                multicastCommand(sender, command, commandParts[1], "ALL", false);
+                multicastCommand(actionType, sender, command, commandParts[1], "ALL", false);
                 break;
             case SHOWALL:
                 if (Standalone.serverIndex != -1)
-                    sender.unicastSend(serverConfigs.get(Standalone.serverIndex), command, 0);
+                    sender.unicastSend(serverConfigs.get(Standalone.serverIndex), command, 0, System.currentTimeMillis());
                 break;
             case DELETE:
                 checkArgNumCheck(commandParts.length, 2);
 
-                multicastCommand(sender, command, commandParts[1], "ALL", true);
+                multicastCommand(actionType, sender, command, commandParts[1], "ALL", true);
                 break;
             case GET:
                 checkArgNumCheck(commandParts.length, 3);
 
-                multicastCommand(sender, command, commandParts[1], commandParts[2], true);
+                multicastCommand(actionType, sender, command, commandParts[1], commandParts[2], true);
                 break;
             case INSERT:
                 checkArgNumCheck(commandParts.length, 4);
 
-                multicastCommand(sender, command, commandParts[1], commandParts[3], true);
+                multicastCommand(actionType, sender, command, commandParts[1], commandParts[3], true);
                 break;
             case UPDATE:
                 checkArgNumCheck(commandParts.length, 4);
 
-                multicastCommand(sender, command, commandParts[1], commandParts[3], true);
+                multicastCommand(actionType, sender, command, commandParts[1], commandParts[3], true);
                 break;
         }
     }
 
-    private void multicastCommand(final Networker sender, final String command, String key, String consistency, final boolean enableDelay) {
+    private void multicastCommand(final CommandAction actionType, final Networker sender, final String command, String key, String consistency, final boolean enableDelay) {
         ConsistencyLevel cl;
         try {
             cl = ConsistencyLevel.valueOf(consistency.toUpperCase());
@@ -170,7 +167,7 @@ public class Client {
         }
 
         final String[] results = new String[numReplicas];
-        int[] replicaIndices = getReplicaIndices(key);
+        final int[] replicaIndices = getReplicaIndices(key);
         for (int i = 0; i < replicaIndices.length; i++) {
             final int serverIndex = replicaIndices[i];
             final int finalI = i;
@@ -181,7 +178,8 @@ public class Client {
                     if (enableDelay && Standalone.serverIndex != -1)
                         averageDelay = serverConfigs.get(Standalone.serverIndex).getDelays()[serverIndex];
 
-                    results[finalI] = sender.unicastSend(serverConfigs.get(serverIndex), command, averageDelay);
+                    long timestamp = System.currentTimeMillis();
+                    results[finalI] = sender.unicastSend(serverConfigs.get(serverIndex), command, averageDelay, timestamp);
                 }
             };
             sendingThread.start();
@@ -214,5 +212,90 @@ public class Client {
             default:
                 break;
         }
+
+        if (actionType == CommandAction.GET)
+            issueReadRepair(sender, replicaIndices, results);
+    }
+
+    public void issueReadRepair(final Networker sender, final int[] replicaIndices, final String[] results) {
+        final Thread readRepairThread = new Thread() {
+            @Override
+            public void run() {
+                QueryResult[] qr = new QueryResult[numReplicas];
+
+                boolean exit = false;
+                while (!exit) {
+                    exit = true;
+
+                    for (int i = 0; i < replicaIndices.length; i++) {
+                        if (qr[i] == null && results[i] != null)
+                            qr[i] = new Gson().fromJson(results[i], QueryResult.class);
+
+                        if (qr[i] == null)
+                            exit = false;
+                    }
+                }
+
+                boolean inconsistent = false;
+                for (int i = 1; i < qr.length; i++) {
+                    if (qr[i].isSuccess() != qr[i - 1].isSuccess())
+                        inconsistent = true;
+                    else if (qr[i].isSuccess()) {
+                        String currentVal = qr[i].getResult().get(0).getValue();
+                        String previousVal = qr[i - 1].getResult().get(0).getValue();
+                        if (!currentVal.equals(previousVal))
+                            inconsistent = true;
+                    }
+                }
+
+                if (!inconsistent)
+                    return;
+
+                logger.debug("Inconsistency detected");
+
+                long latestTimestamp = -1;
+                int correctServerIndex = -1;
+                String key = "", value = "";
+                for (int i = 0; i < qr.length; i++) {
+                    List<ResultEntry> reList = qr[i].getResult();
+                    if (reList == null)
+                        continue;
+
+                    ResultEntry re = reList.get(0);
+                    long timestamp = re.getTimestamp();
+                    if (timestamp > latestTimestamp) {
+                        correctServerIndex = replicaIndices[i];
+                        latestTimestamp = timestamp;
+
+                        key = re.getKey();
+                        value = re.getValue();
+                    }
+                }
+
+                final String message = String.format("UPDATE %s %s ALL", key, value);
+
+                for (int i = 0; i < replicaIndices.length; i++) {
+                    final int serverIndex = replicaIndices[i];
+                    if (serverIndex == correctServerIndex)
+                        continue;
+
+                    int averageDelay = 0;
+                    if (Standalone.serverIndex != -1)
+                        averageDelay = serverConfigs.get(Standalone.serverIndex).getDelays()[serverIndex];
+
+                    final int finalAverageDelay = averageDelay;
+                    final long finalLatestTimestamp = latestTimestamp;
+                    Thread sendingThread = new Thread() {
+                        @Override
+                        public void run() {
+                            sender.unicastSend(serverConfigs.get(serverIndex), message, finalAverageDelay, finalLatestTimestamp);
+                        }
+                    };
+                    sendingThread.start();
+                }
+            }
+        };
+
+        readRepairThread.start();
     }
 }
